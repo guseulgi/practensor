@@ -1,4 +1,5 @@
 # 모듈
+import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
@@ -110,3 +111,59 @@ model.compile(optimizer=adam)
 
 # 혹은 문자열로 지정
 model.compile(optimizer='adam')
+
+
+# 평가지표
+# 분류 모델에 대한 평가지표(metrics)는 정확도를 나타내는 accuracy(acc) 가 가장 많이 사용되며, auc, precision, recall 등의 지표로도 사용된다.
+
+# 모델 컴파일 단계에서 metrics 매개변수에 파이썬 리스트 형태로 하나 이상의 평가지표를 지정하여 여러 지표들을 동시에 참고할 수 있다.
+# 클래스 인스턴스로 지정
+acc = tf.keras.metrics.SparseCategoricalAccuracy()
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy', metrics=[acc])
+
+# 문자열로 지정
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+
+# 검증 데이터셋
+# 모델을 훈련할 때 검증셋을 추가 지정하면 매 epoch 마다 훈련 손실과 검증 손실, 각 셋에 대한 평가지표를 나란히 출력한다.
+# validation_data 매개변수에 튜플 형식으로 검증 셋을 지정해준다.
+model.fit(x_train, y_train,
+          validation_data=(x_test, y_test),
+          epochs=10)
+
+# 평가
+# 훈련이 종료되면 evaluate() 메서드로 모델 성능을 검증하고 평가 결과를 확인할 수 있다.
+test_loss, test_acc = model.evaluate(x_test, y_test)
+print('검증 셋 정확도', test_acc)
+
+
+# 예측
+# predict() 메서드에 이미지 데이터를 넣어주면 모델의 예측 결과를 반환한다. 예측한 분류 결과를 넘파이 배열 형태로 저장
+predictions = model.predict(x_test)
+predictions[0]  # 예측 결과 출력
+
+print(np.argmax(predictions[0]))
+# 가장 높은 확률값을 가진 클래스가 최종 예측된 클래스로 넘파이 배열의 argmax 를 활용하여 가장 높은 확률값을 가지는 클래스 결과를 확인할 수 있다.
+
+
+def get_one_result(idx):
+    img, y_true, y_pred, confidence = x_test[idx], y_test[idx], np.argmax(
+        predictions[idx]), 100*np.max(predictions[idx])
+    return img, y_true, y_pred, confidence
+
+
+fig, axes = plt.subplots(3, 5)
+fig.set_size_inches(12, 10)
+for i in range(15):
+    ax = axes[i//5, i % 5]
+    img, y_true, y_pred, confidence = get_one_result(i)
+    ax.imshow(img, cmap='gray')
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title(f'True: {y_true}')
+    ax.set_xlabel(f'Prediction: {y_pred}\n Confidence: ({confidence:.2f} %)')
+plt.tight_layout()
+plt.show()
