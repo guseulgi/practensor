@@ -167,3 +167,72 @@ for i in range(15):
     ax.set_xlabel(f'Prediction: {y_pred}\n Confidence: ({confidence:.2f} %)')
 plt.tight_layout()
 plt.show()
+
+# 레이어
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+print('train set: ', x_train.shape, y_train.shape)
+
+x_train = x_train/x_train.max()
+x_test = x_test/x_test.max()
+
+# dense = tf.keras.layers.Dense(256, activation='relu')
+
+# 문자열 레이어 초기화
+dense = tf.keras.layers.Dense(
+    256, kernel_initializer='he_normal', activation='relu')
+
+# 클래스 인스턴스 레이어 초기화
+# he_normal = tf.keras.initializers.HeNormal()
+# dense = tf.keras.Dense(256, kernel_initializer=he_normal, activation='relu')
+
+dense.get_config()['kernel_initializer']
+
+# 케라스 가중치 초기화
+# glorot_normal, glorot_uniform: 글로럿 초기화 (Xavier 초기화)
+# lecun_normal, lecun_uniform: Yann Lecun 초기화
+# he_normal, he_uniform: He 초기화
+# random_normal, random_unoform: 정규분포, 연속균등 분포 초기화
+
+# 규제 kernel_regularizer
+dense = tf.keras.layers.Dense(256, activation='relu', kernel_regularizer='l1')
+
+# regulatizer = tf.keras.regularizers.l1(l1=0.1)
+# dense = tf.keras.layers.Dense(256, kernel_regularizer=regulatizer, activation='relu')
+
+dense.get_config()
+
+# 드롭아웃
+# 딥러닝 모델의 층이 넓고 깊어질 때 모델은 훈련에 주어진 샘플에 과하게 적합하도록 학습됨
+# 훈련할 때 만나지 못한 새로운 데이터에 대해 좋지 않은 예측력을 보여서 일반화된 성능을 갖지못하는 문제 = 과대적합
+# 노드의 일부 신호를 임의로 삭제하게 되면 학습하는 가중치 파라미터의 개수가 현저하게 줄어들어 모델이 쉽게 과대적합 되는 것을 방지할 수 있다
+
+# 모델이 훈련할 때 드롭아웃이 적용되어 노드 중 일부만 훈련하게 되지만 예측 시점에는 모든 노드들이 활용됨
+tf.keras.layers.Dropout(0.25)  # 비율 25%의 노드가 삭제
+
+# 배치 정규화
+# 각 층에 활성화 함수를 통과하기 전 미니 배치의 스케일을 정규화한다
+# 다음층으로 데이터가 전달되기 전에 스케일을 조정하기에 안정적인 훈련이 가능하고 성능을 향상시킬 수 있음
+
+# Dense + ReLU
+model_a = tf.keras.Sequential([
+    tf.keras.layers.Flatten(input_shape=(28, 28)),
+    tf.keras.layers.Dense(64, activation='relu'),
+    tf.keras.layers.Dense(32, activation='relu'),
+    tf.keras.layers.Dense(10, activation='softmax')
+])
+model_a.summary()
+
+# Dense + 배치 정규화 + ReLU
+model_b = tf.keras.Sequential([
+    tf.keras.layers.Flatten(input_shape=(28, 28)),
+    tf.keras.layers.Dense(64),
+    tf.keras.layers.BatchNormalization(),  # 배치 정규화
+    tf.keras.layers.Activation('relu'),  # 배치 정규화 후 활성화 함수
+
+    tf.keras.layers.Dense(32),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.Activation('relu'),
+
+    tf.keras.layers.Dense(10, activation='softmax')
+])
+model_b.summary()
