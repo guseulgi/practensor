@@ -236,3 +236,143 @@ model_b = tf.keras.Sequential([
     tf.keras.layers.Dense(10, activation='softmax')
 ])
 model_b.summary()
+
+
+# 활성화 함수
+# tf.keras.layers.LeakyReLU()
+# tf.keras.layers.LeakyReLU(alpha=0.2)
+
+# Dense + 배치 정규화 + LeakyReLU(0.2)
+model_c = tf.keras.Sequential([
+    tf.keras.layers.Flatten(input_shape=(28, 28)),
+    tf.keras.layers.Dense(64),
+    tf.keras.layers.BatchNormalization(),  # 배치 정규화
+    tf.keras.layers.LeakyReLU(alpha=0.2),  # 배치 정규화 후 활성화 함수
+
+    tf.keras.layers.Dense(32),
+    tf.keras.layers.BatchNormalization(),
+    tf.keras.layers.LeakyReLU(alpha=0.2),
+
+    tf.keras.layers.Dense(10, activation='softmax')
+])
+model_c.summary()
+
+model_a.compile(optimizer='adam',
+                loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model_b.compile(optimizer='adam',
+                loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model_c.compile(optimizer='adam',
+                loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+history_a = model_a.fit(
+    x_train, y_train, validation_data=(x_test, y_test), epochs=10)
+history_b = model_b.fit(
+    x_train, y_train, validation_data=(x_test, y_test), epochs=10)
+history_c = model_c.fit(
+    x_train, y_train, validation_data=(x_test, y_test), epochs=10)
+
+plt.figure(figsize=(12, 9))
+plt.plot(np.arange(1, 11),
+         history_a.history['val_loss'], color='navy', linestyle=':')
+plt.plot(np.arange(1, 11),
+         history_b.history['val_loss'], color='tomato', linestyle='-.')
+plt.plot(np.arange(1, 11),
+         history_c.history['val_loss'], color='green', linestyle='-')
+
+plt.title('Losses', fontsize=20)
+plt.xlabel('epochs')
+plt.ylabel('Losses')
+plt.legend(['ReLU', 'BatchNorm + ReLU', 'batchnorm + LeakyReLU'], fontsize=12)
+plt.show()
+
+# 콜백
+# 모델을 훈련할 때 보조적인 작업을 수행할 수 있도록 도와주는 객체
+# fit() 메서드에 매개변수로 지정 가능
+
+# 모델 체크포인트
+# 모델 훈련 시 콜백으로 지정하여 epoch별 모델의 가중치를 저장
+# 저장할 때 마치 체크포인트를 생성하듯 미리 정해 놓은 규칙에 의해 체크포인트를 생성하고 저장
+
+# filepath: 체크 포인트의 저장 경로
+# save_weights_only: 가중치만 저장할지 여부 설정
+# save_best_only: monitor 기준으로 가장 높은 epoch만 저장할지 아니면 매 epoch별 저장할지 여부 설정
+# monitor: 저장 시 기준이 되는 지표 설정 val_loss 로 지정 시 검증 손실이 가장 낮은 epoch의 가중치로 저장
+# verbose: 1로 설정 시 매 epoch별 저장 여부를 알려주는 로그 메시지 출력
+
+checkpoint = tf.keras.callbacks.ModelCheckpoint(
+    filepath='tmp_checkpoint.weights.h5', save_weights_only=True, save_best_only=True, monitor='val_loss', verbose=1)
+model_a.fit(x_train, y_train, validation_data=(
+    x_test, y_test), epochs=10, callbacks=[checkpoint])
+
+# 저장한 가중치를 model 인스턴스에 적용하려면 load_weights() 메서드에 모델 체크포인트  파일 경로를 지정하여 호출해 주어야 한다
+# 모델에 저장한 가중치를 명시적으로 로드해주어야 검증 손실이 가장 낮았던 가중치가 모델에 로드됨
+
+
+# 모델 체크 로드 전
+loss, acc = model_a.evaluate(x_test, y_test)
+print(f'체크 포인트 로드 전: , {loss:3f}, {acc:3f}')
+
+model_a.load_weights('tmp_checkpoint.weights.h5')
+loss, acc = model_a.evaluate(x_test, y_test)
+print(f'체크 포인트 로드 후: , {loss:3f}, {acc:3f}')
+# load_weights() 메서드가 호출되기 전 검증 성능은 마지막 epoch 10 실행 결과로 손실 기준이다
+# 모델 체크 포인트에 저장되어 있는 가중치를 불러온 뒤에는 가장 검증 손실이 낮았던 epoch의 손실이 된다 (epoch 5)
+
+# 조기 종료
+# tensorflow.keras.callbacks.EarlyStopping() 객체로 생성하며 모델 훈련 시 patience에 지정된 epoch 안에 손실이 줄어들지 않는다면 모델 훈련을 조기 종료
+# 조기 종료 기준이 되는 지표를 검증 손실로 설정하고 조기 종료 콜백을 생성한다
+model = tf.keras.Sequential([
+    tf.keras.layers.Flatten(input_shape=(28, 28)),
+    tf.keras.layers.Dense(256, activation='relu'),
+    tf.keras.layers.Dense(64, activation='relu'),
+    tf.keras.layers.Dense(32, activation='relu'),
+    tf.keras.layers.Dense(10, activation='softmax')
+])
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+earlystopping = tf.keras.callbacks.EarlyStopping(
+    monitor='val_loss', patience=3)
+
+model.fit(x_train, y_train, validation_data=(
+    x_test, y_test), epochs=20, callbacks=[earlystopping])
+
+# 학습률 스케줄러
+# tensorflow.keras.callbacks.LearningRateScheduler() 객체로 생성하여 훈련에 대한 학습률을 조정
+
+
+def scheduler(epoch, lr):
+    tf.print(f'learning_rate: {lr:5f}')
+    if epoch < 5:
+        return lr
+    else:
+        return lr*tf.math.exp(-0.1)
+
+
+lr_scheduler = tf.keras.callbacks.LearningRateScheduler(scheduler)
+
+model = tf.keras.Sequential([
+    tf.keras.layers.Flatten(input_shape=(28, 28)),
+    tf.keras.layers.Dense(256, activation='relu'),
+    tf.keras.layers.Dense(64, activation='relu'),
+    tf.keras.layers.Dense(32, activation='relu'),
+    tf.keras.layers.Dense(10, activation='softmax')
+])
+
+model.compile(tf.keras.optimizers.SGD(),
+              loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+# print(round(model.optimizer.lr.numpy(), 5))
+
+# 텐서보드
+# 훈련에 대한 시각화를 실시간으로 제공
+# epoch별 훈련 손실 및 평가 지표를 시각화해 차트로 보여주고 모델의 구조를 시각화해 보여주거나 레이어의 가중치 분포도를 시각화로 제공
+log_dir = 'tensorboard'
+tensorboard = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+model.fit(x_train, y_train, validation_data=(
+    x_test, y_test), epochs=10, callbacks=[tensorboard])
+# model.fit(x_train, y_train, validation_data=(x_test, y_test), epochs=10, callbacks=[lr_scheduler])
+
+# round(model.optimizer.lr.numpy(), 5)
+
+# 텐서보드 출력
+# %load_ext tensorboard
+# %tensorboard --logdir {log_dir}
