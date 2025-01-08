@@ -2,6 +2,8 @@
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from tensorflow.keras.utils import plot_model
+
 
 # 손글씨 데이터셋 시각화
 
@@ -376,3 +378,39 @@ model.fit(x_train, y_train, validation_data=(
 # 텐서보드 출력
 # %load_ext tensorboard
 # %tensorboard --logdir {log_dir}
+
+
+# 모델을 h5 포맷으로 저장
+model.save('h5-model.h5')
+# HDF5: Hierarchical Data Format, 대용량의 데이터를 저장하기 위한 파일 형식
+# SavedModel
+
+# 저장된 모델 복원
+h5_model = tf.keras.models.load_model('h5-model.h5')
+h5_model.summary()
+
+# 함수형 API
+# 1.Input 레이어 정의 - 데이터의 입력 shape 를 지정
+input_layer = tf.keras.Input(shape=(28, 28), name='InputLayer')
+
+# 레이어마다 반환되는 출력 값을 변수에 저장한 뒤 다음 레이어의 입력으로 연결
+# 여러 개의 레이어를 체인 구조로 입출력을 연결
+x1 = tf.keras.layers.Flatten(name='Flatten')(input_layer)
+x2 = tf.keras.layers.Dense(256, activation='relu', name='Dense1')(x1)
+x3 = tf.keras.layers.Dense(64, activation='relu', name='Dense2')(x2)
+x4 = tf.keras.layers.Dense(10, activation='softmax', name='OutputLayer')(x3)
+
+func_model = tf.keras.Model(
+    inputs=input_layer, outputs=x4, name='FunctionalModel')
+# inputs 매개변수로 입력층 지정
+# outputs 매개변수로 출력층 지정
+func_model.summary()
+
+plot_model(func_model, show_shapes=True,
+           show_layer_names=True, to_file='model.png')
+
+func_model.compile(
+    optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+func_model.fit(x_train, y_train, epochs=3)
+loss, acc = func_model.evaluate(x_test, y_test, verbose=0)
